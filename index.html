@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Gợi ý điểm đến du lịch — SmartMatch Vietnam</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #fffaf6;
+    --bg-grad: rgba(255,255,255,0.02);
+    --panel: #ffffff;
+    --text: #0f172a;
+    --muted:#6b7280;
+    --accent:#00a7a7;
+    --accent-2:#ff6b6b;
+    --glass: rgba(255,255,255,0.7);
+    --card-shadow: 0 6px 20px rgba(15,23,42,0.06);
+  }
+  /* dark mode variables (applied when .dark on <html>) */
+  .dark{
+    --bg: #000000;
+    --bg-grad: #000000;
+    --panel: #071023;
+    --text: #e6eef6;
+    --muted: #9aa7b8;
+    --accent: #66e0d6;
+    --accent-2: #ff9aa2;
+    --glass: rgba(255,255,255,0.04);
+    --card-shadow: 0 10px 30px rgba(3,7,18,0.6);
+  }
+
+  html,body{height:100%;margin:0}
+  *{box-sizing:border-box}
+
+  body{
+    background: linear-gradient(180deg,var(--bg) 0%, var(--bg-grad) 100%);
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  }
+
+  /* make sure canvas (petals) sits under everything */
+  #petalCanvas{position:fixed;inset:0;z-index:0;pointer-events:none;display:block;width:100%;height:100%;}
+
+  /* Layout */
+  header{
+    padding:18px 20px;
+    display:flex;
+    gap:20px;
+    align-items:center;
+    justify-content:space-between;
+    position:relative;z-index:1;
+    background:transparent;
+  }
+  .brand{display:flex;gap:14px;align-items:center;}
+  .logo{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:18px;box-shadow:0 8px 20px rgba(0,167,167,0.12);overflow:hidden}
+  .logo img{width:100%;height:100%;object-fit:cover;display:block}
+  .logo .logo-text{display:block}
+  h1{margin:0;font-size:18px}
+  p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
+
+  .controls-top{display:flex;gap:8px;align-items:center}
+
+  .theme-toggle{width:44px;height:44px;border-radius:10px;border:none;background:var(--panel);box-shadow:var(--card-shadow);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:6px;position:relative;z-index:2}
+  .theme-toggle svg{width:24px;height:24px;transition:transform .3s ease,opacity .2s ease;}
+
+  #iconSun { color: #ffbf00; }
+  #iconMoon { color: #ffd966; }
+
+  main{display:grid;grid-template-columns:360px 1fr;gap:20px;padding:0 20px 80px;position:relative;z-index:1}
+
+  /* left filter panel: independent scroll, uses panel background */
+  .panel{background:var(--panel);border-radius:12px;padding:14px;box-shadow:var(--card-shadow);max-height:calc(100vh - 36px);overflow:auto}
+  .panel::-webkit-scrollbar{width:8px;height:8px}
+  .panel::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.08);border-radius:999px}
+
+  .section-title{font-weight:600;margin-bottom:10px;color:var(--text)}
+  .filters{display:grid;gap:10px}
+  label.checkbox{display:flex;gap:10px;align-items:center;padding:10px;border-radius:10px;border:1px solid rgba(10,10,10,0.04);cursor:pointer;transition:transform .12s ease;background:transparent}
+  label.checkbox input{width:16px;height:16px}
+  label.checkbox:hover{transform:translateY(-4px)}
+  input[type="range"]{width:100%}
+  .btn{display:inline-block;padding:10px 14px;border-radius:10px;background:linear-gradient(90deg,var(--accent),#00ffc2);color:white;font-weight:600;border:none;cursor:pointer;box-shadow:0 8px 18px rgba(0,167,167,0.12)}
+  a{text-decoration: none}
+
+  .results{padding:18px;border-radius:14px;background:transparent}
+  .controls{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+  .pill{background:var(--glass);padding:8px 12px;border-radius:999px;font-weight:600;color:var(--accent)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+
+  /* cards and recommendations use panel background but with slight separation (borders) so they read on both light/dark */
+  .card{background:var(--panel);border-radius:12px;padding:12px;box-shadow:var(--card-shadow);transition:transform .2s ease,box-shadow .2s ease;overflow:hidden;position:relative;border:1px solid rgba(10,10,10,0.03)}
+  .card:hover{transform:translateY(-8px);box-shadow:0 16px 36px rgba(2,6,23,0.35)}
+  .card img{width:100%;height:150px;object-fit:cover;border-radius:8px;background:linear-gradient(180deg,var(--bg), rgba(0,0,0,0.02))}
+  .badge{position:absolute;top:10px;left:10px;background:linear-gradient(90deg,#ffd166,#ff6b6b);color:white;padding:6px 9px;border-radius:999px;font-weight:700;font-size:12px;box-shadow:0 6px 18px rgba(255,107,107,0.18)}
+
+  .recommend-section{margin-bottom:18px}
+  .recommend-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .recommend-title{font-size:18px;font-weight:800;color:var(--accent)}
+  .recommendation{background:var(--panel);border-radius:12px;padding:16px;box-shadow:var(--card-shadow);animation:fadeInUp .45s ease;position:relative;border:1px solid rgba(10,10,10,0.03)}
+  .recommendation img{width:100%;height:360px;object-fit:cover;border-radius:8px;margin-bottom:12px;background:linear-gradient(180deg,var(--bg), rgba(0,0,0,0.02))}
+  .rec-badge{position:absolute;top:14px;right:14px;background:var(--accent);color:white;padding:8px 12px;border-radius:999px;font-weight:700;box-shadow:0 8px 18px rgba(0,167,167,0.12)}
+  .rec-title{display:flex;align-items:center;justify-content:space-between;gap:12px}
+
+  .tags{display:flex;gap:8px;flex-wrap:nowrap;margin-top:8px;overflow:auto;padding-bottom:6px}
+  .tag{background:rgba(0,167,167,0.08);padding:6px 10px;border-radius:999px;color:var(--accent);font-weight:600;white-space:nowrap}
+
+  @keyframes fadeInUp{from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none}}
+
+  .all-listing-header{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px}
+  footer{padding:18px 20px;color:var(--muted);font-size:13px;text-align:center;position:relative;z-index:1;background:transparent}
+
+  /* small adjustments for dark mode contrast */
+  .dark .card, .dark .recommendation, .dark .panel{border-color: rgba(255,255,255,0.04)}
+  .dark .tag{background:rgba(102,224,214,0.06)}
+
+  @media (max-width:980px){
+    main{grid-template-columns:1fr; padding:0 14px 80px}
+    .panel{position:static}
+    .recommendation img{height:220px}
+  }
+</style>
+</head>
+<body>
+
+<!-- canvas for cherry blossoms -->
+<canvas id="petalCanvas" aria-hidden="true"></canvas>
+
+<header>
+  <div class="brand">
+    <div class="logo" id="logoWrap">
+      <img id="logoImg" alt="logo" style="display:none">
+      <span class="logo-text">SM</span>
+    </div>
+    <div>
+      <h1>NTTSmartMatch — Gợi ý điểm đến</h1>
+      <p class="lead">Đề xuất nằm trên cùng. Xem thông tin chi tiết tất cả tỉnh bên dưới.</p>
+    </div>
+  </div>
+
+  <div class="controls-top">
+    <a href="/" class="btn" id="homeBtn" title="Về trang chủ">Trang chủ</a>
+    <button class="btn" id="suggestBtn">Gợi ý ngay</button>
+    <button class="theme-toggle" id="themeToggle" title="Chuyển giao diện">
+      <svg id="iconSun" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+        <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6"></circle>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+      </svg>
+      <svg id="iconMoon" viewBox="0 0 24 24" fill="none" style="display:none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <aside class="panel" aria-label="Bộ lọc người dùng">
+    <div>
+      <div class="section-title">Sở thích chính</div>
+      <div class="filters" id="interests">
+        <label class="checkbox"><input type="checkbox" value="beach"> Bãi biển</label>
+        <label class="checkbox"><input type="checkbox" value="mountain"> Núi & trekking</label>
+        <label class="checkbox"><input type="checkbox" value="heritage"> Di sản & lịch sử</label>
+        <label class="checkbox"><input type="checkbox" value="nature"> Thiên nhiên & vườn quốc gia</label>
+        <label class="checkbox"><input type="checkbox" value="cave"> Hang động</label>
+        <label class="checkbox"><input type="checkbox" value="citylife"> Thành phố & ẩm thực</label>
+        <label class="checkbox"><input type="checkbox" value="island"> Đảo & lặn</label>
+        <label class="checkbox"><input type="checkbox" value="culture"> Văn hóa & lễ hội</label>
+      </div>
+    </div>
+
+    <hr style="margin:14px 0;border:none;border-top:1px solid rgba(10,10,10,0.04)">
+
+    <div>
+      <div class="section-title">Khung thời gian & Ngân sách</div>
+      <label style="font-size:13px;color:var(--muted)">Thời gian (ngày)</label>
+      <input type="range" id="duration" min="1" max="14" value="3">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:6px">
+        <span id="durationVal">3 ngày</span><span id="budgetVal">Ngân sách: trung bình</span>
+      </div>
+
+      <label style="display:block;margin-top:10px;font-size:13px;color:var(--muted)">Ngân sách</label>
+      <select id="budget" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(10,10,10,0.06)">
+        <option value="low">Thấp</option>
+        <option value="medium" selected>Trung bình</option>
+        <option value="high">Cao</option>
+      </select>
+    </div>
+
+    <hr style="margin:14px 0;border:none;border-top:1px solid rgba(10,10,10,0.04)">
+
+    <div>
+      <div class="section-title">Thời điểm</div>
+      <select id="season" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(10,10,10,0.06)">
+        <option value="all">Bất kỳ</option>
+        <option value="summer">Mùa hè</option>
+        <option value="winter">Mùa đông</option>
+        <option value="rainy">Mùa mưa</option>
+      </select>
+    </div>
+
+    <div style="margin-top:14px;display:flex;gap:10px">
+      <button class="btn" id="applyBtn">Áp dụng</button>
+      <button class="btn" id="resetBtn" style="background:linear-gradient(90deg,#ffd166,#ff6b6b)">Đặt lại</button>
+    </div>
+  </aside>
+
+  <section class="results" aria-live="polite">
+    <div class="controls">
+      <div class="pill" id="chosenCount">0 tags</div>
+      <div style="flex:1"></div>
+      <div style="font-size:13px;color:var(--muted)">Kết quả đề xuất: <strong id="resultCount">0</strong></div>
+    </div>
+
+    <div class="recommend-section" id="recommendSection" aria-label="Đề xuất cho bạn">
+      <div class="recommend-header">
+        <div class="recommend-title">ĐỀ XUẤT CHO BẠN (tối đa 3)</div>
+        <div style="font-size:13px;color:var(--muted)">Dựa trên sở thích & nhu cầu</div>
+      </div>
+      <div id="recommendArea"></div>
+    </div>
+
+    <div class="all-listing-header">
+      <div style="font-weight:800">THÔNG TIN TẤT CẢ CÁC TỈNH</div>
+      <div style="color:var(--muted);font-size:13px">Toàn bộ danh sách (20 tỉnh)</div>
+    </div>
+
+    <div class="cards" id="provinceCards"></div>
+
+  </section>
+</main>
+
+<footer>
+  Giao diện demo — ảnh có thể chèn trực tiếp trong code (thuộc tính <code>img</code> cho mỗi tỉnh), trạng thái giao diện lưu local.
+</footer>
+
+<script>
+/* ========== DATA (giữ nguyên) ========== */
+const provinces = [
+  { id:'hanoi', name:'Hà Nội', tags:['heritage','citylife','culture'], short:'Thủ đô với phố cổ, hồ Hoàn Kiếm, Văn Miếu và ẩm thực đường phố đặc sắc — phù hợp chuyến citybreak lịch sử & ẩm thực.', img: 'piqsels.com-id-oxncq.jpg' },
+  { id:'quangninh', name:'Quảng Ninh', tags:['beach','nature','island','boat','heritage'], short:'Vịnh Hạ Long nổi tiếng với hàng nghìn đảo đá vôi; hợp cho du lịch vịnh, kayak, thăm đảo và nghỉ dưỡng biển.', img: 'wallpaperflare.com_wallpaper (1).jpg' },
+  { id:'laocai', name:'Lào Cai', tags:['mountain','trekking','culture','nature'], short:'Cửa ngõ đến Sapa với ruộng bậc thang, bản làng dân tộc và trekking vùng núi Tây Bắc.', img: 'DSC4357_compressed-2048x1365.jpg' },
+  { id:'ninhbinh', name:'Ninh Bình', tags:['nature','heritage','boat','cave'], short:'Tam Cốc – Tràng An: cảnh quan đá vôi, chuyến xuôi thuyền qua hang và đền chùa cổ.', img: 'trang-an-2-17605965133161501841579.jpg' },
+  { id:'hagiang', name:'Hà Giang', tags:['mountain','roadtrip','culture','photography'], short:'Cung đường đèo, cao nguyên đá và văn hóa các dân tộc miền núi — tuyệt cho roadtrip và chụp ảnh.', img: 'thac-ban-gioc.jpg' },
+  { id:'quangbinh', name:'Quảng Bình', tags:['cave','nature','adventure'], short:'Phong Nha – hang Sơn Đoòng, nhiều hang động và trải nghiệm khám phá mạo hiểm.', img: 'image_wvp1622994143.jpg' },
+  { id:'thuythienhue', name:'Thừa Thiên Huế', tags:['heritage','culture','history'], short:'Cố đô Huế với những lăng tẩm, đền đài và ẩm thực cung đình đặc trưng.', img: 'thuathienhue.jpg' },
+  { id:'danang', name:'Đà Nẵng', tags:['beach','citylife','bridge','family'], short:'Thành phố biển hiện đại, gần phố cổ Hội An và bãi biển dài — tiện cho kết hợp biển + tham quan.', img: 'cầu-rồng-đà-nẵng-ivivu-4-Picsart-AiImageEnhancer.jpg' },
+  { id:'quangnam', name:'Quảng Nam', tags:['heritage','island','culture'], short:'Hội An, Mỹ Sơn — phố cổ, di sản văn hóa và các làng nghề truyền thống.', img: '99-1725614226-371139e09b383c666529-Picsart-AiImageEnhancer.jpg' },
+  { id:'khanhhoa', name:'Khánh Hòa', tags:['beach','island','diving','heritage'], short:'Nha Trang với các đảo, bãi biển và di tích Chăm Pô-Nagar.', img: 'photo-1757250264974-17572502657161997023439.webp' },
+  { id:'lamdong', name:'Lâm Đồng', tags:['mountain','cool','coffee','nature'], short:'Đà Lạt: cao nguyên mát mẻ, rừng thông, vườn hoa, cà phê và khí hậu lãng mạn.', img: 'dat-phong-da-lat-0.webp' },
+  { id:'kiengiang', name:'Kiên Giang', tags:['island','beach','diving','nature'], short:'Phú Quốc và vịnh Hà Tiên — đảo, bãi biển và hải sản tươi sống.', img: 'Phu-Quo-Island-Vietnam-Picsart-AiImageEnhancer.jpg' },
+  { id:'hcm', name:'Thành Phố Hồ Chí Minh', tags:['citylife','food','nightlife','history'], short:'Trung tâm thương mại, ẩm thực Sài Gòn sôi động và nhiều bảo tàng lịch sử.', img: 'tphcm-1-1751245519173693919081.jpg' },
+  { id:'brvt', name:'Bà Rịa - Vũng Tàu', tags:['beach','shorttrip','seafood'], short:'Gần Sài Gòn, biển Vũng Tàu thuận tiện cho chuyến cuối tuần và hải sản.', img: 'bariavungtau-17027988756532145792606.jpg' },
+  { id:'binhthuan', name:'Bình Thuận', tags:['beach','sand','kitesurf','island'], short:'Mũi Né nổi tiếng cồn cát, gió tốt cho kitesurf; biển và resort.', img: 'binh-thuan-thuoc-mien-nao-1-Picsart-AiImageEnhancer.jpg' },
+  { id:'cantho', name:'Cần Thơ', tags:['river','culture','food'], short:'Trung tâm miền Tây: chợ nổi, sông nước và ẩm thực đặc trưng vùng đồng bằng sông Cửu Long.', img: 'dbscl-4604.jpg' },
+  { id:'angiang', name:'An Giang', tags:['river','pilgrimage','nature'], short:'Rừng tràm, núi Cấm và văn hóa Chăm – phù hợp cho trải nghiệm sông nước và tâm linh.', img: 'w-rung-tram-tra-su2-21-1-1548-610.jpg' },
+  { id:'daklak', name:'Đắk Lắk', tags:['nature','coffee','ethnic','waterfall'], short:'Cao nguyên Trung bộ, cà phê, thác nước và văn hóa dân tộc Tây Nguyên.', img: 'ngasauhomnay-hh20250401143521-1743500518205-1743500519056187266604-Picsart-AiImageEnhancer.jpg' },
+  { id:'quangngai', name:'Quảng Ngãi', tags:['beach','history','island'], short:'Bãi biển sạch, đảo Lý Sơn gần đó (hành trình đảo & khám phá lịch sử địa phương).', img: 'san-bay-2-1745222424844110212095-Picsart-AiImageEnhancer.webp' },
+  { id:'haiphong', name:'Hải Phòng', tags:['port','island','citylife'], short:'Cảng biển lớn, du lịch vịnh, đảo và món ăn Hải Phòng đặc trưng.', img: 'anh-dep-hai-phong-47-1750597391221757892765-Picsart-AiImageEnhancer.jpg' }
+];
+
+/* utility để lấy ảnh */
+function imgFromQ(q, w=1600,h=900){ return `https://source.unsplash.com/${w}x${h}/?${encodeURIComponent(q)}`; }
+function pickImage(p){ if(p.img && p.img.trim().length>0) return p.img; const q = p.imgQ || (p.name + ' travel'); return imgFromQ(q,1600,900); }
+
+/* render & thuật toán giống trước */
+const cardsEl = document.getElementById('provinceCards');
+const recommendArea = document.getElementById('recommendArea');
+
+function renderAllCards(list, recommendedIds = []){
+  cardsEl.innerHTML = '';
+  list.forEach(p=>{
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.innerHTML = `\n      ${recommendedIds.includes(p.id) ? '<div class="badge">ĐỀ XUẤT</div>' : ''}\n      <img loading="lazy" src="${pickImage(p)}" alt="${p.name}">\n      <h3 style="margin:8px 0 6px">${p.name}</h3>\n      <p style="margin:0;color:var(--muted);font-size:13px">${p.short}</p>\n      <div style="margin-top:10px" class="tags">${p.tags.slice(0,4).map(t=>`<span class="tag">${t}</span>`).join(' ')}</div>\n    `;
+    cardsEl.appendChild(card);
+  });
+}
+
+function getSelectedTags(){ const checks = Array.from(document.querySelectorAll('#interests input[type="checkbox"]')); return checks.filter(c=>c.checked).map(c=>c.value); }
+function scoreProvince(p, tags, budget, duration, season){ let s=0; tags.forEach(t=>{ if(p.tags.includes(t)) s += 10; }); if(budget==='low' && ['laocai','ninhbinh','hagiang','quangngai','angiang','daklak'].includes(p.id)) s+=4; if(budget==='high' && ['kiengiang','khanhhoa','brvt','binhthuan'].includes(p.id)) s+=3; if(duration <= 3 && ['hanoi','hcm','danang','brvt','haiphong','cantho'].includes(p.id)) s+=3; if(season==='winter' && p.tags.includes('mountain')) s -= 2; s += Math.random()*1.5; return s; }
+
+function recommend(){
+  const chosenTags = getSelectedTags();
+  document.getElementById('chosenCount').textContent = chosenTags.length + ' tags';
+  const budget = document.getElementById('budget').value;
+  const duration = parseInt(document.getElementById('duration').value || '3',10);
+  const season = document.getElementById('season').value;
+
+  const scored = provinces.map(p=> ({...p, score: scoreProvince(p, chosenTags, budget, duration, season)}));
+  scored.sort((a,b)=>b.score - a.score);
+  const top = scored.slice(0,3);
+
+  recommendArea.innerHTML = '';
+  top.forEach((p, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'recommendation';
+    div.innerHTML = `\n      <div class="rec-badge">ĐỀ XUẤT</div>\n      <div class="rec-title">\n        <h2 style="margin:0">${idx+1}. ${p.name}</h2>\n        <div style="color:var(--muted);font-weight:600">${(p.score).toFixed(1)} pts</div>\n      </div>\n      <img src="${pickImage(p)}" alt="${p.name}">\n      <p style="margin:0 0 10px;color:var(--text)">${p.short}</p>\n      <div class="tags">${p.tags.map(t=>`<span class="tag">${t}</span>`).join(' ')}</div>\n    `;
+    recommendArea.appendChild(div);
+  });
+
+  const recommendedIds = top.map(t=>t.id);
+  renderAllCards(provinces, recommendedIds);
+  document.getElementById('resultCount').textContent = top.length;
+}
+
+/* ========== Theme toggle: now apply class on <html> so variables affect whole page ========== */
+const themeToggle = document.getElementById('themeToggle');
+const iconSun = document.getElementById('iconSun');
+const iconMoon = document.getElementById('iconMoon');
+
+function applyTheme(theme){
+  if(theme === 'dark'){
+    document.documentElement.classList.add('dark');
+    iconSun.style.display = 'none';
+    iconMoon.style.display = 'block';
+  } else {
+    document.documentElement.classList.remove('dark');
+    iconSun.style.display = 'block';
+    iconMoon.style.display = 'none';
+  }
+  try { localStorage.setItem('sm_theme', theme); } catch(e){}
+}
+themeToggle.addEventListener('click', ()=>{
+  const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+});
+try { const saved = localStorage.getItem('sm_theme') || 'light'; applyTheme(saved); } catch(e) { applyTheme('light'); }
+
+/* ========== Logo: load custom logo from localStorage or keep text fallback ========== */
+(function initLogo(){
+  const logoImg = document.getElementById('logoImg');
+  const logoText = document.querySelector('.logo .logo-text');
+  try{
+    const userLogo = localStorage.getItem('sm_logo'); // store a URL here if you want
+    if(userLogo){
+      logoImg.src = userLogo;
+      logoImg.style.display = 'block';
+      logoText.style.display = 'none';
+    }
+  }catch(e){}
+})();
+
+/* ========== UI wiring ========== */
+document.getElementById('applyBtn').addEventListener('click', recommend);
+document.getElementById('suggestBtn').addEventListener('click', recommend);
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  document.querySelectorAll('#interests input[type="checkbox"]').forEach(c=>c.checked=false);
+  document.getElementById('duration').value = 3;
+  document.getElementById('budget').value = 'medium';
+  document.getElementById('season').value = 'all';
+  document.getElementById('durationVal').textContent = '3 ngày';
+  document.getElementById('budgetVal').textContent = 'Ngân sách: trung bình';
+  recommend();
+});
+document.getElementById('duration').addEventListener('input', e=>{ document.getElementById('durationVal').textContent = e.target.value + ' ngày'; });
+document.getElementById('budget').addEventListener('change', e=>{ const map = {low:'Ngân sách: thấp', medium:'Ngân sách: trung bình', high:'Ngân sách: cao'}; document.getElementById('budgetVal').textContent = map[e.target.value] || 'Ngân sách'; });
+
+/* initial render */
+recommend();
+
+/* ========== Cherry blossom petal animation (canvas) ==========
+   - Petals drawn under all content (canvas z-index:0)
+   - pointer-events:none so it won't interfere
+   - You can tune PETAL_COUNT / sizes below
+*/
+(function petals(){
+  const canvas = document.getElementById('petalCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, DPR = window.devicePixelRatio || 1;
+  const PETAL_COUNT = 28; // tweak
+  const petals = [];
+
+  function resize(){
+    DPR = window.devicePixelRatio || 1;
+    W = canvas.clientWidth || window.innerWidth;
+    H = canvas.clientHeight || window.innerHeight;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+
+  function rand(min,max){ return Math.random()*(max-min)+min }
+
+  function makePetal(){
+    return {
+      x: rand(0, W),
+      y: rand(-H, 0),
+      w: rand(8, 20),
+      h: rand(6, 14),
+      vx: rand(-0.3, 0.6),
+      vy: rand(0.4, 1.2),
+      ang: rand(0, Math.PI*2),
+      va: rand(-0.02, 0.02),
+      rot: rand(0, Math.PI*2),
+      opacity: rand(0.6, 1)
+    };
+  }
+
+  function init(){
+    resize();
+    petals.length = 0;
+    for(let i=0;i<PETAL_COUNT;i++) petals.push(makePetal());
+    requestAnimationFrame(loop);
+  }
+
+  function drawPetal(p){
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.globalAlpha = p.opacity * 0.95;
+    // simple blossom shape: rotated ellipse + small petal curve
+    ctx.beginPath();
+    ctx.ellipse(0, 0, p.w/2, p.h/2, 0, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,182,193,0.95)'; // light pink
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function loop(){
+    ctx.clearRect(0,0,W,H);
+    for(let i=0;i<petals.length;i++){
+      const p = petals[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.va;
+      // slight horizontal wander
+      p.vx += Math.sin(p.rot) * 0.001;
+
+      if(p.y > H + 20 || p.x < -40 || p.x > W + 40){
+        petals[i] = makePetal();
+        petals[i].y = -10;
+      }
+      drawPetal(p);
+    }
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener('resize', () => { resize(); });
+  init();
+})();
+
+</script>
+</body>
+</html>
